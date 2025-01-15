@@ -4,7 +4,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 def cot_reflection(system_prompt, initial_query, client, model: str, return_full_response: bool=False):
-    cot_completion_tokens = 0
+    token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
+
     cot_prompt = f"""
         {system_prompt}
 
@@ -45,7 +46,8 @@ def cot_reflection(system_prompt, initial_query, client, model: str, return_full
 
     # Extract the full response
     full_response = response.choices[0].message.content
-    cot_completion_tokens += response.usage.completion_tokens
+    token_counts['prompt_tokens'] += response.usage.prompt_tokens
+    token_counts['completion_tokens'] += response.usage.completion_tokens
     logger.info(f"CoT with Reflection :\n{full_response}")
 
     # Use regex to extract the content within <thinking> and <output> tags
@@ -58,7 +60,7 @@ def cot_reflection(system_prompt, initial_query, client, model: str, return_full
     logger.info(f"Final output :\n{output}")
 
     if return_full_response:
-        return full_response, cot_completion_tokens
+        return full_response, token_counts
     else:
-        return output, cot_completion_tokens
+        return output, token_counts
 

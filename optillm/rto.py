@@ -14,7 +14,7 @@ def extract_code_from_prompt(text):
         return text
 
 def round_trip_optimization(system_prompt: str, initial_query: str, client, model: str) -> str:
-    rto_completion_tokens = 0
+    token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
     messages = [{"role": "system", "content": system_prompt},
                 {"role": "user", "content": initial_query}]
 
@@ -27,7 +27,8 @@ def round_trip_optimization(system_prompt: str, initial_query: str, client, mode
         temperature=0.1
     )
     c1 = response_c1.choices[0].message.content
-    rto_completion_tokens += response_c1.usage.completion_tokens
+    token_counts['prompt_tokens'] += response_c1.usage.prompt_tokens
+    token_counts['completion_tokens'] += response_c1.usage.completion_tokens
 
     # Generate description of the code (Q2)
     messages.append({"role": "assistant", "content": c1})
@@ -40,7 +41,8 @@ def round_trip_optimization(system_prompt: str, initial_query: str, client, mode
         temperature=0.1
     )
     q2 = response_q2.choices[0].message.content
-    rto_completion_tokens += response_q2.usage.completion_tokens
+    token_counts['prompt_tokens'] += response_q2.usage.prompt_tokens
+    token_counts['completion_tokens'] += response_q2.usage.completion_tokens
 
     # Generate second code based on the description (C2)
     messages = [{"role": "system", "content": system_prompt},
@@ -53,13 +55,14 @@ def round_trip_optimization(system_prompt: str, initial_query: str, client, mode
         temperature=0.1
     )
     c2 = response_c2.choices[0].message.content
-    rto_completion_tokens += response_c2.usage.completion_tokens
+    token_counts['prompt_tokens'] += response_c2.usage.prompt_tokens
+    token_counts['completion_tokens'] += response_c2.usage.completion_tokens
 
     c1 = extract_code_from_prompt(c1)
     c2 = extract_code_from_prompt(c2)
 
     if c1.strip() == c2.strip():
-        return c1, rto_completion_tokens
+        return c1, token_counts
 
     messages = [{"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Initial query: {initial_query}\n\nFirst generated code (C1):\n{c1}\n\nSecond generated code (C2):\n{c2}\n\nBased on the initial query and these two different code implementations, generate a final, optimized version of the code. Only respond with the final code, do not return anything else."}]
@@ -71,6 +74,7 @@ def round_trip_optimization(system_prompt: str, initial_query: str, client, mode
         temperature=0.1
     )
     c3 = response_c3.choices[0].message.content
-    rto_completion_tokens += response_c3.usage.completion_tokens
+    token_counts['prompt_tokens'] += response_c3.usage.prompt_tokens
+    token_counts['completion_tokens'] += response_c3.usage.completion_tokens
 
-    return c3, rto_completion_tokens
+    return c3, token_counts

@@ -136,22 +136,22 @@ class Z3SymPySolverSystem:
         self.model = model
         self.client = client
         self.timeout = timeout
-        self.solver_completion_tokens = 0
+        self.token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     def process_query(self, query: str) -> str:
         try:
             analysis = self.analyze_query(query)
             if "SOLVER_CAN_BE_APPLIED: True" not in analysis:
-                return self.standard_llm_inference(query), self.solver_completion_tokens
+                return self.standard_llm_inference(query), self.token_counts
             
             formulation = self.extract_and_validate_expressions(analysis)
             solver_result = self.solve_with_z3_sympy(formulation)
              
-            return self.generate_response(query, analysis, solver_result), self.solver_completion_tokens
+            return self.generate_response(query, analysis, solver_result), self.token_counts
         except Exception as e:
             logging.error(f"An error occurred while processing the query with Z3 and SymPy, returning standard llm inference results: {str(e)}")
-            return self.standard_llm_inference(query), self.solver_completion_tokens
+            return self.standard_llm_inference(query), self.token_counts
 
     def analyze_query(self, query: str) -> str:
         analysis_prompt = f"""Analyze the given query and determine if it can be solved using Z3 or SymPy:
@@ -187,7 +187,8 @@ Analysis:
             n=1,
             temperature=0.1
         )
-        self.solver_completion_tokens = analysis_response.usage.completion_tokens
+        self.token_counts['prompt_tokens'] += analysis_response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += analysis_response.usage.completion_tokens
         return analysis_response.choices[0].message.content
 
     def generate_response(self, query: str, analysis: str, solver_result: Dict[str, Any]) -> str:
@@ -215,7 +216,8 @@ Response:
             n=1,
             temperature=0.1
         )
-        self.solver_completion_tokens = response.usage.completion_tokens
+        self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += response.usage.completion_tokens
         return response.choices[0].message.content
 
     def standard_llm_inference(self, query: str) -> str:
@@ -229,7 +231,8 @@ Response:
             n=1,
             temperature=0.1
         )
-        self.solver_completion_tokens = response.usage.completion_tokens
+        self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += response.usage.completion_tokens
         return response.choices[0].message.content
 
     def extract_and_validate_expressions(self, analysis: str) -> str:
@@ -275,7 +278,8 @@ Response:
                 n=1,
                 temperature=0.1
             )
-            self.solver_completion_tokens = response.usage.completion_tokens
+            self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+            self.token_counts['completion_tokens'] += response.usage.completion_tokens
             formulation = self.extract_and_validate_expressions(response.choices[0].message.content)
 
         return {"status": "failed", "output": "Failed to solve after multiple attempts."}

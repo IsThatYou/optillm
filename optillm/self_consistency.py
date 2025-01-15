@@ -10,22 +10,24 @@ class AdvancedSelfConsistency:
         self.model = model
         self.num_samples = num_samples
         self.similarity_threshold = similarity_threshold
-        self.self_consistency_completion_tokens = 0
+        self.token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
 
     def generate_responses(self, system_prompt: str, user_prompt: str) -> List[str]:
         responses = []
-        for _ in range(self.num_samples):
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=1,
-                max_tokens=4096
-            )
-            self.self_consistency_completion_tokens += response.usage.completion_tokens
-            responses.append(response.choices[0].message.content)
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=1,
+            max_tokens=4096,
+            n=self.num_samples
+        )
+        self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += response.usage.completion_tokens
+        for choice in response.choices:
+            responses.append(choice.message.content)
         return responses
 
     def calculate_similarity(self, a: str, b: str) -> float:
@@ -73,8 +75,9 @@ class AdvancedSelfConsistency:
             "aggregated_result": aggregated_result
         }
 
-def advanced_self_consistency_approach(system_prompt: str, initial_query: str, client, model: str) -> str:
-    self_consistency = AdvancedSelfConsistency(client, model)
+def advanced_self_consistency_approach(system_prompt: str, initial_query: str, client, model: str, self_consistency_n) -> str:
+    print(f"num_samples: {self_consistency_n}")
+    self_consistency = AdvancedSelfConsistency(client, model, num_samples=self_consistency_n)
     result = self_consistency.evaluate(system_prompt, initial_query)
     
     logger.info("Advanced Self-Consistency Results:")
@@ -87,6 +90,6 @@ def advanced_self_consistency_approach(system_prompt: str, initial_query: str, c
         logger.debug(f"  Variants: {cluster['variants']}")
     
     if result['aggregated_result']['clusters']:
-        return result['aggregated_result']['clusters'][0]['answer'], self_consistency.self_consistency_completion_tokens
+        return result['aggregated_result']['clusters'][0]['answer'], self_consistency.token_counts
     else:
-        return "No consistent answer found.", self_consistency.self_consistency_completion_tokens
+        return "No consistent answer found.", self_consistency.token_counts

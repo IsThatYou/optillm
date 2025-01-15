@@ -32,13 +32,14 @@ class MCTS:
         self.node_labels = {}
         self.client = client
         self.model = model
-        self.completion_tokens = 0
+        self.token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
 
     def select(self, node: MCTSNode) -> MCTSNode:
         logger.debug(f"Selecting node. Current node visits: {node.visits}, value: {node.value}")
         if not node.children:
             logger.debug("Node has no children. Returning current node.")
             return node
+        logger.info(f"Node has {node.children} children")
         selected_node = max(node.children, key=lambda c: c.value / (c.visits + 1e-8) + self.exploration_weight * np.sqrt(np.log(node.visits + 1) / (c.visits + 1e-8)))
         logger.debug(f"Selected child node. Visits: {selected_node.visits}, Value: {selected_node.value}")
         return selected_node
@@ -96,7 +97,8 @@ class MCTS:
                 node = self.expand(node)
             value = self.simulate(node)
             self.backpropagate(node, value)
-            
+    
+        logger.info(f"Root node children: {self.root.children}")
         best_child = max(self.root.children, key=lambda c: c.visits)
         logger.debug(f"Search complete. Best child node: Visits: {best_child.visits}, Value: {best_child.value}")
         return best_child.state
@@ -119,7 +121,8 @@ class MCTS:
             temperature=1
         )
         completions = [choice.message.content.strip() for choice in response.choices]
-        self.completion_tokens += response.usage.completion_tokens
+        self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += response.usage.completion_tokens
         logger.info(f"Received {len(completions)} completions from the model")
         return completions
 
@@ -142,7 +145,8 @@ class MCTS:
         )
         
         next_query = response.choices[0].message.content
-        self.completion_tokens += response.usage.completion_tokens
+        self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += response.usage.completion_tokens
         logger.info(f"Generated next user query: {next_query}")
         return DialogueState(state.system_prompt, new_history, next_query)
 
@@ -164,7 +168,8 @@ class MCTS:
             n=1,
             temperature=0.1
         )
-        self.completion_tokens += response.usage.completion_tokens
+        self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += response.usage.completion_tokens
         try:
             score = float(response.choices[0].message.content.strip())
             score = max(0, min(score, 1))  # Ensure the score is between 0 and 1
@@ -184,4 +189,4 @@ def chat_with_mcts(system_prompt: str, initial_query: str, client, model: str, n
     final_state = mcts.search(initial_state, num_simulations)
     response = final_state.conversation_history[-1]['content'] if final_state.conversation_history else ""
     logger.info(f"MCTS chat complete. Final response: {response[:100]}...")
-    return response, mcts.completion_tokens
+    return response, mcts.token_counts

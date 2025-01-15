@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 def mixture_of_agents(system_prompt: str, initial_query: str, client, model: str) -> str:
     logger.info(f"Starting mixture_of_agents function with model: {model}")
-    moa_completion_tokens = 0
+    token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
     completions = []
 
     logger.debug(f"Generating initial completions for query: {initial_query}")
@@ -19,7 +19,8 @@ def mixture_of_agents(system_prompt: str, initial_query: str, client, model: str
         temperature=1
     )
     completions = [choice.message.content for choice in response.choices]
-    moa_completion_tokens += response.usage.completion_tokens
+    token_counts['prompt_tokens'] += response.usage.prompt_tokens
+    token_counts['completion_tokens'] += response.usage.completion_tokens
     logger.info(f"Generated {len(completions)} initial completions. Tokens used: {response.usage.completion_tokens}")
     
     logger.debug("Preparing critique prompt")
@@ -52,7 +53,8 @@ def mixture_of_agents(system_prompt: str, initial_query: str, client, model: str
         temperature=0.1
     )
     critiques = critique_response.choices[0].message.content
-    moa_completion_tokens += critique_response.usage.completion_tokens
+    token_counts['prompt_tokens'] += critique_response.usage.prompt_tokens
+    token_counts['completion_tokens'] += critique_response.usage.completion_tokens
     logger.info(f"Generated critiques. Tokens used: {critique_response.usage.completion_tokens}")
     
     logger.debug("Preparing final prompt")
@@ -87,8 +89,9 @@ def mixture_of_agents(system_prompt: str, initial_query: str, client, model: str
         n=1,
         temperature=0.1
     )
-    moa_completion_tokens += final_response.usage.completion_tokens
+    token_counts['prompt_tokens'] += final_response.usage.prompt_tokens
+    token_counts['completion_tokens'] += final_response.usage.completion_tokens
     logger.info(f"Generated final response. Tokens used: {final_response.usage.completion_tokens}")
     
-    logger.info(f"Total completion tokens used: {moa_completion_tokens}")
-    return final_response.choices[0].message.content, moa_completion_tokens
+    logger.info(f"Total tokens used - Prompt: {token_counts['prompt_tokens']}, Completion: {token_counts['completion_tokens']}")
+    return final_response.choices[0].message.content, token_counts

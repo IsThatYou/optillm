@@ -30,7 +30,7 @@ class RStar:
         self.actions = ["A1", "A2", "A3", "A4", "A5"]
         self.original_question = None 
         self.system = system
-        self.rstar_completion_tokens = 0
+        self.token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
         logger.debug(f"Initialized RStar with model: {model}, max_depth: {max_depth}, num_rollouts: {num_rollouts}")
 
     async def generate_response_async(self, prompt: str) -> str:
@@ -89,7 +89,7 @@ class RStar:
         answers = [self.extract_answer(node.state) for node in final_trajectory]
         final_answer = self.select_best_answer(answers)
         logger.info(f"Selected final answer: {final_answer}")
-        return final_answer, self.rstar_completion_tokens
+        return final_answer, self.token_counts
 
     def generate_response(self, prompt: str) -> str:
         logger.debug(f"Generating response for prompt: {prompt[:100]}...")
@@ -102,7 +102,8 @@ class RStar:
             max_tokens=4096,
             temperature=0.2
         )
-        self.rstar_completion_tokens += response.usage.completion_tokens
+        self.token_counts['prompt_tokens'] += response.usage.prompt_tokens
+        self.token_counts['completion_tokens'] += response.usage.completion_tokens
         generated_response = response.choices[0].message.content.strip()
         logger.debug(f"Generated response: {generated_response}")
         return generated_response
