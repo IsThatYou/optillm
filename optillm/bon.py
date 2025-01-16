@@ -25,7 +25,9 @@ def best_of_n_sampling(system_prompt: str, initial_query: str, client, model: st
     
     # Rate the completions
     rating_messages = messages.copy()
-    rating_messages.append({"role": "system", "content": "Rate the following responses on a scale from 0 to 10, where 0 is poor and 10 is excellent. Consider factors such as relevance, coherence, and helpfulness. Respond with only a number."})
+    rating_prompt = """Rate this response from 0-10 based on reasoning quality. Give high scores (8-10) if it shows clear step-by-step logical reasoning with well-supported conclusions. Give medium scores (4-7) for partial reasoning with gaps. Give low scores (0-3) for responses without clear logical steps. Return only the numerical score."""
+
+    rating_messages.append({"role": "system", "content": rating_prompt})
     
     ratings = []
     for completion in completions:

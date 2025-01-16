@@ -11,15 +11,15 @@ class PlanSearch:
         self.token_counts = {'prompt_tokens': 0, 'completion_tokens': 0}
 
     def generate_observations(self, problem: str, num_observations: int = 3) -> List[str]:
-        prompt = f"""You are an expert Python programmer. You will be given a competitive programming question
-(problem specification). You will return several useful, non-obvious, and correct observations
-about the problem, like hints to solve the problem. You will NOT return any code. Be as
-creative as possible, going beyond what you think is intuitively correct.
+        prompt = f"""You are an expert problem solver. You will be given a problem to analyze.
+You will return several useful, non-obvious, and insightful observations about the problem that could help solve it.
+Focus on identifying key patterns, constraints, and hidden relationships that might not be immediately apparent.
+Be creative and think beyond conventional approaches.
 
-Here is the competitive programming problem:
+Here is the problem:
 {problem}
 
-Please provide {num_observations} observations."""
+Please provide {num_observations} key observations."""
 
         response = self.client.chat.completions.create(
             model=self.model,
@@ -35,13 +35,11 @@ Please provide {num_observations} observations."""
         return [obs.strip() for obs in observations if obs.strip()]
 
     def generate_derived_observations(self, problem: str, observations: List[str], num_new_observations: int = 2) -> List[str]:
-        prompt = f"""You are an expert Python programmer. You will be given a competitive programming question
-(problem specification) and several correct observations about the problem.
-You will brainstorm several new, useful, and correct observations about the problem, derived
-from the given observations. You will NOT return any code. Be as creative as possible, going
-beyond what you think is intuitively correct.
+        prompt = f"""You are an expert problem solver. You will be given a problem and several insightful observations about it.
+You will brainstorm new observations by combining and extending the existing ones in creative ways.
+Look for connections between observations and potential implications that weren't initially obvious.
 
-Here is the competitive programming problem:
+Here is the problem:
 {problem}
 
 Here are the existing observations:
@@ -63,17 +61,15 @@ Please provide {num_new_observations} new observations derived from the existing
         return [obs.strip() for obs in new_observations if obs.strip()]
 
     def generate_solution(self, problem: str, observations: List[str]) -> str:
-        prompt = f"""Here is the competitive programming problem:
+        prompt = f"""Here is the problem to solve:
 {problem}
 
-Here are the intelligent observations to help solve the problem:
-{chr(10).join(f"Observation {i+1}: {obs}" for i, obs in enumerate(observations))}
+Here are the key insights to help solve the problem:
+{chr(10).join(f"Insight {i+1}: {obs}" for i, obs in enumerate(observations))}
 
-Use these observations above to brainstorm a natural language solution to the problem above.
-Note that your intuition may lead you astray, so come up with simple, creative ideas that
-go beyond what you would usually come up with and exceeds your narrow intuition.
-Quote relevant parts of the observations EXACTLY before each step of the solution. QUOTING
-IS CRUCIAL."""
+Use these insights above to develop a clear, step-by-step solution to the problem.
+Think creatively and go beyond conventional approaches, while ensuring your solution is logical and well-supported.
+Quote relevant insights EXACTLY before each step to show how they inform your solution. QUOTING IS CRUCIAL."""
 
         response = self.client.chat.completions.create(
             model=self.model,
@@ -88,18 +84,17 @@ IS CRUCIAL."""
         return response.choices[0].message.content.strip()
 
     def implement_solution(self, problem: str, solution: str) -> str:
-        prompt = f"""You are an expert Python programmer. You will be given a question (problem specification)
-and a natural language solution/tutorial that describes how to solve the problem. You will
-generate a correct Python program that matches said specification and tutorial and passes
-all tests. You will NOT return anything except for the program inside markdown codeblocks.
+        prompt = f"""You are an expert problem solver. You will be given a problem and a detailed solution approach.
+Transform this solution into a concrete implementation that solves the problem.
+Your implementation should closely follow the solution's logic while being efficient and practical.
 
 Problem:
 {problem}
 
-Solution:
+Solution Approach:
 {solution}
 
-Please implement the solution in Python."""
+Please implement the solution."""
 
         response = self.client.chat.completions.create(
             model=self.model,
